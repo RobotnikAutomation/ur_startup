@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<launch>
+
+	<!-- Desired frequency -->
+	<arg name="desired_freq" default="20.0" />
+
+	<!-- Load .yaml example -->
+	<rosparam file="$(find ur_startup)/config/example.yaml" command="load" />
+
+	<!-- Run ur_startup node -->
+	<node name="ur_startup" pkg="ur_startup" type="ur_startup_node.py" output="screen" respawn="false">
+		<param name="desired_freq" value="$(arg desired_freq)"/>
+	</node>
+
+</launch>
