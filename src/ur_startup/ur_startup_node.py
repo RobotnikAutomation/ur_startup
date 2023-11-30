@@ -2,7 +2,12 @@
 # -*- coding: utf-8 -*-
 
 import rospy
-from ur_startup import UrStartup
+import sys
+
+if sys.version_info.major == 3:
+    from ur_startup.startup import UrStartup
+else:
+    from startup import UrStartup
 
 
 def main():

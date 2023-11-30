@@ -14,6 +14,7 @@ class UrStartup(RComponent):
     def __init__(self):
 
         self.arm_program_running = False
+        self.robot_mode = 0
         self.trigger_program = False
         self.last_time = rospy.get_time()
 
@@ -40,7 +41,7 @@ class UrStartup(RComponent):
 
         self.robot_mode_sub = rospy.Subscriber(self.robot_mode_topic_name, RobotMode, self.robot_mode_cb)
 
-        self.arm_program_running = rospy.Subscriber(self.robot_program_running_topic_name, Bool, self.arm_program_running_cb)
+        self.arm_program_running_sub = rospy.Subscriber(self.robot_program_running_topic_name, Bool, self.arm_program_running_cb)
 
         RComponent.ros_setup(self)
 
@@ -69,6 +70,12 @@ class UrStartup(RComponent):
                 self.trigger_program = False
                 self.last_time = rospy.get_time()
         else:
+
+            if self.robot_mode == 7 and self.arm_program_running == False:
+
+                rospy.logwarn("Robot arm is ready, autostart running!")
+                self.trigger_program = True
+
             self.last_time = rospy.get_time() 
 
         return RComponent.ready_state(self)
@@ -88,14 +95,7 @@ class UrStartup(RComponent):
     def robot_mode_cb(self, msg):
 
         rospy.logwarn("robot_mode: " + str(msg.mode))
-
-        if msg.mode == 7 and self.arm_program_running == False:
-            rospy.logwarn("Robot arm is ready, autostart running!")
-            self.trigger_program = True 
-        else:
-            self.trigger_program = False
-
-        return
+        self.robot_mode = msg.mode
 
     def arm_program_running_cb(self, msg):
 
