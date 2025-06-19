@@ -8,12 +8,14 @@ import math
 from std_msgs.msg import Bool
 from std_srvs.srv import Trigger, TriggerResponse, TriggerRequest
 from ur_dashboard_msgs.msg import RobotMode
+from ur_dashboard_msgs.srv import IsProgramRunning, IsProgramRunningRequest, IsProgramRunningResponse
 
 class UrStartup(RComponent):
 
     def __init__(self):
 
         self.arm_program_running = False
+        self.arm_program_running_service = False
         self.robot_mode = 0
         self.trigger_program = False
         self.last_time = rospy.get_time()
@@ -24,8 +26,10 @@ class UrStartup(RComponent):
 
         self.connect_service_name = rospy.get_param('~connect_service_name', 'ur_hardware_interface/dashboard/connect')
         self.run_arm_program_service_name = rospy.get_param('~run_arm_program_service_name', 'ur_hardware_interface/dashboard/play')
+        self.stop_arm_program_service_name = rospy.get_param('~stop_arm_program_service_name', 'ur_hardware_interface/dashboard/stop')
         self.robot_mode_topic_name = rospy.get_param('~robot_mode_topic_name', 'ur_hardware_interface/robot_mode')
         self.robot_program_running_topic_name = rospy.get_param('~robot_program_running_topic_name', 'ur_hardware_interface/robot_program_running')
+        self.robot_program_running_service_name = rospy.get_param('~robot_program_running_service_name', 'ur_hardware_interface/dashboard/program_running')
         self.timeout = rospy.get_param('~timeout', 5)
 
         RComponent.ros_read_params(self)
@@ -36,6 +40,8 @@ class UrStartup(RComponent):
 
         self.connect_client = rospy.ServiceProxy(self.connect_service_name, Trigger)
         self.run_arm_program_client = rospy.ServiceProxy(self.run_arm_program_service_name, Trigger)
+        self.stop_arm_program_client = rospy.ServiceProxy(self.stop_arm_program_service_name, Trigger)
+        self.program_running_client = rospy.ServiceProxy(self.robot_program_running_service_name, IsProgramRunning)
 
         # Topics
 
@@ -48,7 +54,8 @@ class UrStartup(RComponent):
         return 0
 
     def init_state(self):
-
+        rospy.logwarn("Connect to Polyscope...")
+        response = self.connect_client(TriggerRequest())
         return RComponent.init_state(self)
 
     def ready_state(self):
@@ -60,21 +67,24 @@ class UrStartup(RComponent):
             if elapsed_time > self.timeout: 
 
                 try:
-                    rospy.logwarn("Connect to Polyscope...")
-                    response = self.connect_client(TriggerRequest())
                     rospy.logwarn("Play program in Polyscope")
                     response = self.run_arm_program_client(TriggerRequest())
+                    if response.success:
+                        rospy.signal_shutdown("Program started correctly")
                 except:
                     rospy.logerr("Error playing program, is Polyscope in remote mode?")
 
                 self.trigger_program = False
                 self.last_time = rospy.get_time()
         else:
-
             if self.robot_mode == 7 and self.arm_program_running == False:
+                if not self.arm_program_running_service:
+                    rospy.logwarn("Robot arm is ready, autostart running!")
+                else:
+                    rospy.logwarn("Stoping program to restart")
+                    response = self.stop_arm_program_client.call(TriggerRequest())
+                self.trigger_program = True 
 
-                rospy.logwarn("Robot arm is ready, autostart running!")
-                self.trigger_program = True
 
             self.last_time = rospy.get_time() 
 
@@ -101,3 +111,6 @@ class UrStartup(RComponent):
 
         self.arm_program_running = msg.data
         rospy.logwarn("arm_program: " + str(msg.data))
+
+        response = self.program_running_client.call(IsProgramRunningRequest())
+        self.arm_program_running_service = response.program_running and response.success
