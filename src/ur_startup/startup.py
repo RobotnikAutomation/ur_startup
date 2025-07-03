@@ -54,8 +54,6 @@ class UrStartup(RComponent):
         return 0
 
     def init_state(self):
-        rospy.logwarn("Connect to Polyscope...")
-        response = self.connect_client(TriggerRequest())
         return RComponent.init_state(self)
 
     def ready_state(self):
@@ -67,6 +65,8 @@ class UrStartup(RComponent):
             if elapsed_time > self.timeout: 
 
                 try:
+                    rospy.logwarn("Connect to Polyscope...")
+                    response = self.connect_client(TriggerRequest())
                     rospy.logwarn("Play program in Polyscope")
                     response = self.run_arm_program_client(TriggerRequest())
                     if response.success:
